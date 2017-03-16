@@ -31,14 +31,7 @@ group_members('CitrixCertificateAuth').each do |name,details|
   # user_private_key = OpenSSL::PKey::RSA.new(File.read("c:\\windows-ca\\keys\\#{name}.key"))
   user_private_key = OpenSSL::PKey::RSA.new(File.read("c:\\windows-ca\\cakeys\\user_private.key"))
 
-  # We dont need the key saved to disk as we drop it into the PFX file
-  # file "c:\\windows-ca\\keys\\#{name}.key" do
-  #   content user_private_key.to_s
-  #   sensitive true
-  #   action :create_if_missing
-  # end
-
-  # This generates the certificate
+  # This generates the certificate and signs it with the CA private key (in memory)
   cert = OpenSSL::X509::Certificate.new()
   cert.version = 2
   cert.serial = 2
@@ -51,15 +44,31 @@ group_members('CitrixCertificateAuth').each do |name,details|
   ef.subject_certificate = cert
   ef.issuer_certificate = ca_certificate
   cert.add_extension(ef.create_extension("keyUsage","digitalSignature", true))
+  cert.add_extension(ef.create_extension("keyUsage","keyEncipherment", true))
+  cert.add_extension(ef.create_extension("extendedKeyUsage","clientAuth", true))
+  cert.add_extension(ef.create_extension("subjectAltName","email:#{details['EmailAddress']}", true))
   cert.add_extension(ef.create_extension("subjectKeyIdentifier","hash",false))
   cert.sign(ca_private_key, OpenSSL::Digest::SHA256.new)
 
-  user_pkcs12 = OpenSSL::PKCS12.create("abc123","Citrix auth cert for #{name}",user_private_key,cert)
+  # Instantiate a password protected PKCS12 container to hold the cert and key
+  user_pkcs12 = OpenSSL::PKCS12.create(
+    "abc123",                       # PKCS passphrase
+    "Citrix auth cert for #{name}", # Friendly name
+    user_private_key,               # The users key
+    cert                            # The user's cert
+  )
 
+  # Write out the PKCS12 container to a PFX file (Windows likes those)
   file "c:\\windows-ca\\certs\\#{name}.pfx" do
     content user_pkcs12.to_der
     action :create_if_missing
   end
 
+  # Also write the cert (with no key) in pem format for debugging purposes
+  file "c:\\windows-ca\\certs\\#{name}.crt" do
+    content cert.to_s
+    sensitive true
+    action :create_if_missing
+  end
 
 end
