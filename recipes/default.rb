@@ -46,7 +46,7 @@ group_members('CitrixCertificateAuth').each do |name,details|
   cert.add_extension(ef.create_extension("keyUsage","digitalSignature", true))
   cert.add_extension(ef.create_extension("keyUsage","keyEncipherment", true))
   cert.add_extension(ef.create_extension("extendedKeyUsage","clientAuth", true))
-  cert.add_extension(ef.create_extension("subjectAltName","email:#{details['EmailAddress']}", true))
+  # cert.add_extension(ef.create_extension("subjectAltName","email:#{details['EmailAddress']}", true))
   cert.add_extension(ef.create_extension("subjectKeyIdentifier","hash",false))
   cert.sign(ca_private_key, OpenSSL::Digest::SHA256.new)
 
