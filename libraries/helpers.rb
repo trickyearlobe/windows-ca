@@ -5,8 +5,10 @@ def group_members(groupname)
   member_attributes = {}   # Empty Hash to hold our members attributes
 
   member_list = JSON.parse(
-    powershell_out("Get-ADGroupMember -Identity #{groupname} -Recursive | ConvertTo-Json").stdout # Get the group membership
+    powershell_out("Get-ADGroupMember -Identity '#{groupname}' -Recursive | ConvertTo-Json").stdout # Get the group membership
   )
+  # Deal with the case where we get a Hash for groups with a single member.
+  member_list = [member_list] unless member_list.class == Array
 
   member_list.each do |m|
     member = JSON.parse(
